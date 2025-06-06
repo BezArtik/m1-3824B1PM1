@@ -4,9 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <chrono>
-#include <cstdlib>
 #include <random>
-#include <iomanip>
 #include <limits>
 
 template <typename T>
@@ -63,8 +61,9 @@ private:
 
 template <typename T>
 void Vector<T>::CheckSize(const Vector& other) const {
-    if (size != other.size)
+    if (size != other.size) {
         throw std::invalid_argument("Vector sizes don't match");
+    }
 }
 
 template <typename T>
@@ -165,6 +164,7 @@ public:
     void Swap(Matrix& other) noexcept;
 
     void SwapRows(size_t i, size_t j); 
+
 };
 
 template <typename T>
@@ -347,22 +347,51 @@ Solution<T> GaussMethod(const Matrix<T>& _A, const Vector<T>& _b) {
 }
 
 template <typename T>
-void CheckSolution(const Matrix<T>& A, const Vector<T>& b, const Solution<T>& solution) {
+T MaxAbs(const Vector<T>& v) {
+    if (v.GetSize() == 0) {
+        throw std::runtime_error("Cannot find max of empty vector!");
+    }
+    T max = std::abs(v[0]);
+    for (size_t i = 1; i < v.GetSize(); ++i) {
+        T curr = std::abs(v[i]);
+        if (curr > max) {
+            max = curr;
+        }
+    }
+    if (max <= 0) {
+        return 0;
+    }
+    return max;
+}
+
+template <typename T>
+void CheckSolution(const Matrix<T>& A, const Vector<T>& b, const Solution<T>& sol) {
     const T eps = std::numeric_limits<T>::epsilon() * 1000;
-    if (!solution.is_consistent) {
+    Vector<T> res(b.GetSize());
+    
+    if (!sol.is_consistent) {
         std::cout << "Solution is correct!\n";
         return;
     }
+
     for (size_t i = 0; i < A.GetRows(); ++i) {
         T sum = 0;
         for (size_t j = 0; j < A.GetCols(); ++j) {
-            sum += A[i][j] * solution.particular[j];
+            sum += A[i][j] * sol.particular[j];
         }
-        T error = std::abs(sum - b[i]);
-        T max_val = std::max(T(1), std::max(std::abs(sum), std::abs(b[i])));
-        if (error > eps * max_val) {
-            throw std::runtime_error("Solution is incorrect.\n");
-        }
+        res[i] = std::abs(sum - b[i]);
+    }
+
+    T max_error = MaxAbs(res);
+    T max_b = MaxAbs(b); 
+
+    std::cout << "\n=== Solution verification ===\n";
+    std::cout << "Absolute error: " << max_error << "\n";
+    std::cout << "Relative error: " << max_error / max_b << "\n";
+    std::cout << "Epsilon scale: " << eps << "\n";
+
+    if (max_error > eps * std::max(T(1), max_b)) {
+        throw std::runtime_error("Solution is numerically unstable!");
     }
     std::cout << "Solution is correct!\n";
 }
@@ -372,11 +401,11 @@ void PrintSolution(const Solution<T>& sol) {
     const T eps = std::numeric_limits<T>::epsilon() * 100;
 
     if (!sol.is_consistent) {
-        std::cout << "System is inconsistent (no solutions)\n";
+        std::cout << "System is inconsistent (no solution exists).\n";
         return;
     }
 
-    std::cout << "Solution:\n";
+    std::cout << "=== Solution ===\n";
 
     if (sol.has_unique) {
         for (size_t i = 0; i < sol.particular.GetSize(); ++i) {
@@ -408,9 +437,8 @@ void ProcessRandomMatrix() {
     std::cin >> n;
 
     if (n == 0) {
-        throw std::invalid_argument("Matrix size must be positive");
+        throw std::invalid_argument("Matrix size must be non-zero!");
     }
-
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -428,7 +456,7 @@ void ProcessRandomMatrix() {
                 row_sum += std::abs(A[i][j]);
             }
         }
-        A[i][i] = row_sum * (1 + dist(gen) / static_cast<T>(10000.0));
+        A[i][i] = row_sum;
         b[i] = dist(gen);
     }
 
@@ -440,7 +468,7 @@ void ProcessRandomMatrix() {
     const std::chrono::duration<double> elapsed_seconds{ finish - start };
 
     CheckSolution(A, b, sol);
-    std::cout << "Time of work: ";
+    std::cout << "\n=== Time of work ===\n";
     std::cout << elapsed_seconds.count() << "s\n";
 }
 
@@ -453,7 +481,7 @@ void ProcessManualInput() {
     std::cin >> n;
 
     if (m == 0 || n == 0) {
-        throw std::invalid_argument("Matrix size must be positive");
+        throw std::invalid_argument("Matrix size must be non-zero!");
     }
 
     Matrix<T> A(m, n);
@@ -464,11 +492,11 @@ void ProcessManualInput() {
         std::cout << "Row " << i + 1 << ": ";
         for (size_t j = 0; j < n; ++j) {
             if (!(std::cin >> A[i][j])) {
-                throw std::invalid_argument("Invalid input");
+                throw std::invalid_argument("Invalid input!");
             }
         }
         if (!(std::cin >> b[i])) {
-            throw std::invalid_argument("Invalid input");
+            throw std::invalid_argument("Invalid input!");
         }
     }
     Solution<T> sol = GaussMethod(A, b);
@@ -505,7 +533,7 @@ void Run() {
         std::cout << "Exiting program...\n";
         return;
     default:
-        throw std::invalid_argument("Invalid choice");
+        throw std::invalid_argument("Invalid choice!");
     }
     std::cout << std::endl;
 }
@@ -536,6 +564,6 @@ void FinalRun() {
         std::cout << "Exiting program...\n";
         break;
     default:
-        throw std::invalid_argument("Invalid choice");
+        throw std::invalid_argument("Invalid choice!");
     }
 }
